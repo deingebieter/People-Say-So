@@ -1,0 +1,16 @@
+project/
+│
+├── index.php
+├── game.php
+│
+├── api.php
+│
+├── db.php
+│
+├── game_logic.php
+│
+├── assets/
+│   ├── style.css
+│   └── app.js
+│
+└── database.sql
