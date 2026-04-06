@@ -4,12 +4,13 @@
  * People Say So - MySQL Database Connection
  */
 
-// Database credentials
-define('DB_HOST', 'sql103.hstn.me');
-define('DB_PORT', '3306');
-define('DB_NAME', 'mseet_41580932_p');
-define('DB_USER', 'mseet_41580932');
-define('DB_PASS', 'jXqvPhfVnCWD');
+// Database credentials - loaded from environment or config file
+// For production, set these as environment variables
+define('DB_HOST', getenv('DB_HOST') ?: 'sql103.hstn.me');
+define('DB_PORT', getenv('DB_PORT') ?: '3306');
+define('DB_NAME', getenv('DB_NAME') ?: 'mseet_41580932_p');
+define('DB_USER', getenv('DB_USER') ?: 'mseet_41580932');
+define('DB_PASS', getenv('DB_PASS') ?: 'jXqvPhfVnCWD');
 
 // PDO connection with error handling
 class Database {

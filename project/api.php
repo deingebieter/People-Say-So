@@ -9,7 +9,11 @@ session_start();
 
 // Headers for JSON responses
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
+// CORS - For production, replace with your actual domain
+$allowed_origin = getenv('ALLOWED_ORIGIN') ?: (isset($_SERVER['HTTP_HOST']) ? 'https://' . $_SERVER['HTTP_HOST'] : '');
+if ($allowed_origin) {
+    header('Access-Control-Allow-Origin: ' . $allowed_origin);
+}
 header('Access-Control-Allow-Methods: GET, POST');
 header('Access-Control-Allow-Headers: Content-Type');
 

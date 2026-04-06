@@ -207,13 +207,19 @@ function checkAndConvertSurvey($surveyId) {
     $questionId = $db->lastInsertId();
     
     // Aggregate answers and calculate points
+    // Use subquery to get the most common casing for each answer
     $stmt = $db->prepare("
-        SELECT answer, COUNT(*) as count 
-        FROM survey_responses 
-        WHERE survey_id = ? 
-        GROUP BY LOWER(answer) 
-        ORDER BY count DESC
-        LIMIT 10
+        SELECT sr.answer, subq.count 
+        FROM survey_responses sr
+        INNER JOIN (
+            SELECT LOWER(answer) as lower_answer, COUNT(*) as count, MAX(id) as max_id
+            FROM survey_responses 
+            WHERE survey_id = ?
+            GROUP BY LOWER(answer)
+            ORDER BY count DESC
+            LIMIT 10
+        ) subq ON LOWER(sr.answer) = subq.lower_answer AND sr.id = subq.max_id
+        ORDER BY subq.count DESC
     ");
     $stmt->execute([$surveyId]);
     $answers = $stmt->fetchAll();
@@ -291,12 +297,13 @@ function checkAnswer($questionId, $userAnswer) {
     // Normalize the answer
     $normalizedAnswer = strtolower(trim($userAnswer));
     
+    // Use exact match for answer checking
     $stmt = $db->prepare("
         SELECT * FROM game_answers 
         WHERE question_id = ? 
-        AND LOWER(answer) LIKE ?
+        AND LOWER(answer) = ?
     ");
-    $stmt->execute([$questionId, '%' . $normalizedAnswer . '%']);
+    $stmt->execute([$questionId, $normalizedAnswer]);
     $match = $stmt->fetch();
     
     if ($match) {

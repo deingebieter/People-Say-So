@@ -294,8 +294,7 @@ async function initGame() {
                 document.getElementById('currentEnergyDisplay').textContent = `${startResult.energy || 0}%`;
                 showGameState('noEnergyState');
             } else {
-                alert(startResult.message);
-                window.location.href = 'index.php';
+                showGameError(startResult.message);
             }
             return;
         }
@@ -333,8 +332,24 @@ async function initGame() {
         
     } catch (error) {
         console.error('Error initializing game:', error);
-        alert('Fehler beim Laden des Spiels');
-        window.location.href = 'index.php';
+        showGameError('Fehler beim Laden des Spiels');
+    }
+}
+
+/**
+ * Show error message in game UI instead of alert
+ */
+function showGameError(message) {
+    const loadingState = document.getElementById('loadingState');
+    if (loadingState) {
+        loadingState.innerHTML = `
+            <div class="no-energy-message">
+                <span class="big-icon">⚠️</span>
+                <h2>Fehler</h2>
+                <p>${escapeHtml(message)}</p>
+                <a href="index.php" class="btn btn-primary">Zur Startseite</a>
+            </div>
+        `;
     }
 }
 
