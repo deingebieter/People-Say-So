@@ -520,7 +520,10 @@ class GameState {
         } catch(e) {
             console.error('Aussetzen fehlgeschlagen:', e);
             showFeedback('wrong', 'Fehler beim Aussetzen. Bitte erneut versuchen.');
-        } {
+        }
+    }
+
+    showScorePop(points) {
         const scoreboard = document.getElementById('scoreboard');
         if (!scoreboard) return;
         const pop = document.createElement('div');
