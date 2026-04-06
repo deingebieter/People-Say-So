@@ -106,14 +106,14 @@ class GameLogic {
         $usedIds = $this->getUsedQuestionIds($gameId);
         $placeholders = $usedIds ? implode(',', array_fill(0, count($usedIds), '?')) : '0';
 
-        $sql = "SELECT id FROM questions WHERE id NOT IN ($placeholders) ORDER BY RAND() LIMIT $roundSize";
+        $sql = "SELECT id FROM questions WHERE id NOT IN ($placeholders) ORDER BY RAND() LIMIT " . (int)$roundSize;
         $stmt = $this->db->prepare($sql);
         $stmt->execute($usedIds);
         $questionIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
         if (count($questionIds) < $roundSize) {
             // Recycle: reset and pick any questions
-            $stmt2 = $this->db->prepare("SELECT id FROM questions ORDER BY RAND() LIMIT $roundSize");
+            $stmt2 = $this->db->prepare("SELECT id FROM questions ORDER BY RAND() LIMIT " . (int)$roundSize);
             $stmt2->execute();
             $questionIds = $stmt2->fetchAll(PDO::FETCH_COLUMN);
         }

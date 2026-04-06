@@ -335,7 +335,7 @@ INSERT INTO answers (question_id, answer_text, points, display_order) VALUES
 (22, 'Zug verpasst', 32, 3),
 (22, 'Kein Parkplatz', 22, 4),
 (22, 'Vergessen', 12, 5),
-(22, 'Schlechtes Wetter', 9, 7);
+(22, 'Schlechtes Wetter', 9, 6);
 
 -- Q23: Urlaubsland
 INSERT INTO answers (question_id, answer_text, points, display_order) VALUES

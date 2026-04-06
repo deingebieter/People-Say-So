@@ -231,20 +231,32 @@ class GameState {
     }
 
     async loadState() {
-        const res = await this.api({
-            action: 'get_state',
-            game_id: this.gameId,
-            player_number: this.playerNumber
-        });
-        if (res.success) {
-            this.state = res.data;
-            this.render();
+        try {
+            const res = await this.api({
+                action: 'get_state',
+                game_id: this.gameId,
+                player_number: this.playerNumber
+            });
+            if (res.success) {
+                this._pollFailures = 0;
+                this.state = res.data;
+                this.render();
+            }
+            return res;
+        } catch(e) {
+            this._pollFailures = (this._pollFailures || 0) + 1;
+            // Stop polling after 10 consecutive failures (server unavailable)
+            if (this._pollFailures >= 10) {
+                this.stopPolling();
+                showFeedback('wrong', 'Verbindung unterbrochen. Bitte Seite neu laden.');
+            }
+            return null;
         }
-        return res;
     }
 
     startPolling() {
         if (this.mode === 'online') {
+            this._pollFailures = 0;
             this.pollInterval = setInterval(() => this.loadState(), 2000);
         }
     }
