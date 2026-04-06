@@ -294,7 +294,7 @@
                         await apiCall({ action: 'start_round', game_id: pendingGameId, round_size: selectedRoundSize });
                         goToGame(pendingGameId, 1, code, 'online');
                     }
-                } catch(e) { /* ignore */ }
+                } catch(e) { console.warn('Warte auf Spieler 2:', e); }
             }, 2000);
 
         } catch(e) {
@@ -332,7 +332,7 @@
                         clearInterval(checkStart);
                         goToGame(gameId, playerNumber, code, 'online');
                     }
-                } catch(e) { /* ignore */ }
+                } catch(e) { console.warn('Warte auf Spielstart:', e); }
             }, 1500);
 
             btn.textContent = 'Warte auf Start...';

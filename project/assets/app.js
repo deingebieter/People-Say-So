@@ -5,6 +5,8 @@
 
 'use strict';
 
+const MAX_POLL_FAILURES = 10;
+
 // ================================================================
 // Theme & Music (run on every page immediately)
 // ================================================================
@@ -246,7 +248,7 @@ class GameState {
         } catch(e) {
             this._pollFailures = (this._pollFailures || 0) + 1;
             // Stop polling after 10 consecutive failures (server unavailable)
-            if (this._pollFailures >= 10) {
+            if (this._pollFailures >= MAX_POLL_FAILURES) {
                 this.stopPolling();
                 showFeedback('wrong', 'Verbindung unterbrochen. Bitte Seite neu laden.');
             }
@@ -515,10 +517,10 @@ class GameState {
                 this.render();
                 showFeedback('wrong', 'Ausgesetzt!');
             }
-        } catch(e) { /* ignore */ }
-    }
-
-    showScorePop(points) {
+        } catch(e) {
+            console.error('Aussetzen fehlgeschlagen:', e);
+            showFeedback('wrong', 'Fehler beim Aussetzen. Bitte erneut versuchen.');
+        } {
         const scoreboard = document.getElementById('scoreboard');
         if (!scoreboard) return;
         const pop = document.createElement('div');
@@ -572,7 +574,10 @@ class GameState {
                         this.render();
                         if (this.mode === 'online') this.startPolling();
                     }
-                } catch(e) { /* ignore */ }
+                } catch(e) {
+                        console.error('Neue Runde starten fehlgeschlagen:', e);
+                        showFeedback('wrong', 'Fehler beim Starten der neuen Runde.');
+                    }
             };
         }
     }

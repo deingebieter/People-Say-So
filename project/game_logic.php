@@ -308,10 +308,9 @@ class GameLogic {
             throw new RuntimeException('Spiel nicht gefunden.');
         }
 
-        $roundSize   = (int)$game['current_round_size'];
-        $energyCost  = (int)(100 / $roundSize) * (int)$game['questions_played_this_round'];
-        $newEnergy   = max(0, (int)$game['energy'] - $energyCost);
-        $newStatus   = $newEnergy <= 0 ? 'finished' : 'round_end';
+        // Energy is already deducted per question in advanceQuestion; just set final status.
+        $newEnergy = max(0, (int)$game['energy']);
+        $newStatus = $newEnergy <= 0 ? 'finished' : 'round_end';
 
         $this->db->prepare(
             'UPDATE games SET status = ?, energy = ?, updated_at = NOW() WHERE id = ?'
