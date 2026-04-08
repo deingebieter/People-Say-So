@@ -269,7 +269,8 @@ async function initGame() {
         const canPlayResult = await apiGet('can_play');
         
         if (!canPlayResult.can_play) {
-            document.getElementById('currentEnergyDisplay').textContent = `${canPlayResult.energy}%`;
+            const energyValue = canPlayResult.energy !== undefined ? canPlayResult.energy : (currentUser ? currentUser.energy : 0);
+            document.getElementById('currentEnergyDisplay').textContent = `${energyValue}%`;
             showGameState('noEnergyState');
             return;
         }
@@ -291,7 +292,8 @@ async function initGame() {
         
         if (!startResult.success) {
             if (startResult.message.includes('Energie')) {
-                document.getElementById('currentEnergyDisplay').textContent = `${startResult.energy || 0}%`;
+                const energyValue = startResult.energy !== undefined ? startResult.energy : (currentUser ? currentUser.energy : 0);
+                document.getElementById('currentEnergyDisplay').textContent = `${energyValue}%`;
                 showGameState('noEnergyState');
             } else {
                 showGameError(startResult.message);
@@ -521,7 +523,8 @@ async function playAgain() {
     
     // Check energy
     if (currentUser && currentUser.energy < 10) {
-        document.getElementById('currentEnergyDisplay').textContent = `${currentUser.energy}%`;
+        const energyValue = currentUser.energy !== undefined ? currentUser.energy : 0;
+        document.getElementById('currentEnergyDisplay').textContent = `${energyValue}%`;
         showGameState('noEnergyState');
     } else {
         // Reset and start new game
