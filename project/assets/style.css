@@ -1206,3 +1206,22 @@ body::before {
     .answer-slot { padding: 0.5rem 0.6rem; min-height: 2.8rem; }
     .answer-slot-text { font-size: 0.85rem; }
 }
+
+/* ---- Global error banner (e.g. DB connection failure) ---- */
+.global-error-banner {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 9999;
+    background: #c0392b;
+    color: #fff;
+    padding: 0.9rem 1.5rem;
+    font-size: 0.95rem;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+}
+.global-error-banner code {
+    background: rgba(255,255,255,0.2);
+    padding: 0.1em 0.4em;
+    border-radius: 4px;
+    font-size: 0.9em;
+}

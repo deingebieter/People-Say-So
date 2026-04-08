@@ -11,6 +11,13 @@
 </head>
 <body class="index-page" data-theme="light">
 
+<?php if (isset($_GET['error']) && $_GET['error'] === 'db'): ?>
+<div class="global-error-banner" role="alert">
+    ⚠️ <strong>Datenbankfehler:</strong> Die Verbindung zur Datenbank ist fehlgeschlagen.
+    Bitte prüfe die Zugangsdaten in <code>db.php</code> (Host, Datenbankname, Benutzer, Passwort).
+</div>
+<?php endif; ?>
+
 <!-- Stars background -->
 <div class="stars-container" aria-hidden="true">
     <?php for($i=0;$i<60;$i++): ?><span class="star"></span><?php endfor; ?>
