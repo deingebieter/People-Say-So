@@ -147,13 +147,12 @@ function initGame(config) {
     function renderState(state) {
         if (!state) return;
 
-        // Energy bar
+        // Energy bar — single solid color transitioning green→yellow→red as energy drops
         const energy = state.game ? Math.max(0, Math.min(100, state.game.energy || 0)) : 100;
         if (energyBar) {
             energyBar.style.width = energy + '%';
-            // Color: green high, yellow mid, red low
-            const hue = Math.round(energy * 1.2);
-            energyBar.style.background = `linear-gradient(90deg, hsl(${hue},90%,35%), hsl(${Math.min(hue+20,120)},85%,45%))`;
+            const hue = Math.round(energy * 1.2); // 0=red(0), 50=yellow(60), 100=green(120)
+            energyBar.style.background = `hsl(${hue}, 85%, 38%)`;
         }
         if (energyValue) energyValue.textContent = energy + '%';
 
