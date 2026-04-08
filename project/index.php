@@ -11,6 +11,23 @@
 </head>
 <body class="index-page" data-theme="light">
 
+<?php
+// Show error message if redirected from game.php
+$errorMsg = '';
+if (isset($_GET['error'])) {
+    switch ($_GET['error']) {
+        case 'db':
+            $errorMsg = '⚠️ Datenbankfehler: Das Spiel konnte nicht geladen werden.';
+            break;
+        case 'no_questions':
+            $errorMsg = '⚠️ Keine Fragen verfügbar. Bitte beantworte zuerst Umfragen!';
+            break;
+        default:
+            $errorMsg = '⚠️ Ein Fehler ist aufgetreten.';
+    }
+}
+?>
+
 <!-- Stars background -->
 <div class="stars-container" aria-hidden="true">
     <?php for($i=0;$i<60;$i++): ?><span class="star"></span><?php endfor; ?>
@@ -21,6 +38,13 @@
     <button class="btn-icon" id="themeToggle" title="Design wechseln" aria-label="Design wechseln">🌙</button>
     <button class="btn-icon" id="musicToggle" title="Musik ein/aus" aria-label="Musik ein/aus">🎵</button>
 </div>
+
+<?php if ($errorMsg): ?>
+<div class="error-banner" id="errorBanner">
+    <?= htmlspecialchars($errorMsg) ?>
+    <button class="error-close" onclick="document.getElementById('errorBanner').remove();">✕</button>
+</div>
+<?php endif; ?>
 
 <main class="landing-container">
 

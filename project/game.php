@@ -40,6 +40,12 @@ if (isset($_POST['mode']) && $_POST['mode'] === 'local') {
         $stmt->execute();
         $questions = $stmt->fetchAll();
 
+        // Check if we have enough questions
+        if (empty($questions)) {
+            header('Location: index.php?error=no_questions');
+            exit;
+        }
+
         foreach ($questions as &$q) {
             $aStmt = $db->prepare(
                 'SELECT id, answer_text, points, display_order FROM answers WHERE question_id = ? ORDER BY display_order'

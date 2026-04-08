@@ -1331,3 +1331,44 @@ body::before {
 .divider::after {
     right: 0;
 }
+
+/* ================================================================
+   Error Banner Styles
+   ================================================================ */
+.error-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(135deg, #e84040 0%, #C70000 100%);
+    color: white;
+    padding: 1rem 3rem 1rem 1.5rem;
+    text-align: center;
+    font-weight: 600;
+    z-index: 1000;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from { transform: translateY(-100%); }
+    to { transform: translateY(0); }
+}
+
+.error-close {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.error-close:hover {
+    opacity: 1;
+}
