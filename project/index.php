@@ -41,6 +41,12 @@
             <span class="btn-icon-inner">🌐</span>
             <span>Online spielen</span>
         </button>
+        <div class="divider">oder</div>
+        <button class="btn btn-survey mode-btn" id="btnSurvey">
+            <span class="btn-icon-inner">📝</span>
+            <span>An Umfragen teilnehmen</span>
+        </button>
+        <p class="energy-hint">⚡ +10% Energie pro Umfrage!</p>
     </div>
 
     <!-- LOCAL GAME FORM (plain POST – no JS fetch needed) -->
@@ -137,6 +143,53 @@
             🎯 Beitreten!
         </button>
         <div class="form-error hidden" id="joinError"></div>
+    </div>
+
+    <!-- SURVEY PANEL -->
+    <div class="form-panel card animate-in delay-2 hidden" id="surveyPanel">
+        <button class="back-btn" data-back="mode">← Zurück</button>
+        <h2 class="form-title">📝 Umfragen</h2>
+        
+        <!-- Energy Display -->
+        <div class="survey-energy-display">
+            <div class="energy-label">⚡ Deine Energie</div>
+            <div class="energy-bar-wrap">
+                <div class="energy-bar" id="surveyEnergyBar" style="width:50%">
+                    <span class="energy-shine"></span>
+                </div>
+            </div>
+            <div class="energy-value" id="surveyEnergyValue">50%</div>
+        </div>
+        
+        <!-- Survey Question -->
+        <div class="survey-question-container" id="surveyQuestionContainer">
+            <div class="survey-question-text" id="surveyQuestionText">Lade Umfrage...</div>
+            <div class="survey-progress" id="surveyProgress">
+                <span class="progress-count">0/100</span> Antworten gesammelt
+            </div>
+        </div>
+        
+        <!-- Survey Answer Input -->
+        <div class="form-group">
+            <label for="surveyAnswerInput">Deine Antwort</label>
+            <input type="text" id="surveyAnswerInput" class="input-field" placeholder="Deine Antwort eingeben..." maxlength="100">
+        </div>
+        
+        <button class="btn btn-gold btn-full" id="submitSurveyBtn">
+            ✔ Antwort absenden
+        </button>
+        
+        <button class="btn btn-secondary btn-full" id="skipSurveyBtn" style="margin-top: 10px;">
+            ⏭ Überspringen
+        </button>
+        
+        <div class="form-success hidden" id="surveySuccess"></div>
+        <div class="form-error hidden" id="surveyError"></div>
+        
+        <p class="survey-info">
+            💡 Beantworte Umfragen, um Energie zu sammeln und neue Spiel-Fragen zu erstellen!
+            <br>Nach 100 Antworten wird aus jeder Umfrage eine neue Spiel-Frage.
+        </p>
     </div>
 
 </main>
@@ -327,6 +380,122 @@
     document.getElementById('joinCode').addEventListener('input', function() {
         this.value = this.value.toUpperCase();
     });
+
+    // ================================================================
+    // SURVEY SYSTEM
+    // ================================================================
+    let currentSurvey = null;
+    let userEnergy = 50; // Default starting energy
+    const deviceToken = localStorage.getItem('pss_token') || generateDeviceToken();
+    
+    function generateDeviceToken() {
+        const token = 'dev_' + Math.random().toString(36).substr(2, 16) + Date.now().toString(36);
+        localStorage.setItem('pss_token', token);
+        return token;
+    }
+    
+    function updateSurveyEnergy(energy) {
+        userEnergy = Math.min(100, Math.max(0, energy));
+        const bar = document.getElementById('surveyEnergyBar');
+        const value = document.getElementById('surveyEnergyValue');
+        if (bar) bar.style.width = userEnergy + '%';
+        if (value) value.textContent = userEnergy + '%';
+    }
+    
+    async function loadSurvey() {
+        try {
+            const res = await apiCall({ action: 'get_survey', device_token: deviceToken });
+            if (res.success && res.data) {
+                currentSurvey = res.data.survey;
+                updateSurveyEnergy(res.data.energy || 50);
+                
+                if (currentSurvey) {
+                    document.getElementById('surveyQuestionText').textContent = currentSurvey.question_text;
+                    document.getElementById('surveyProgress').innerHTML = 
+                        `<span class="progress-count">${currentSurvey.current_responses}/${currentSurvey.target_responses}</span> Antworten gesammelt`;
+                    document.getElementById('surveyAnswerInput').value = '';
+                    document.getElementById('surveyAnswerInput').focus();
+                } else {
+                    document.getElementById('surveyQuestionText').textContent = '🎉 Keine offenen Umfragen mehr! Spiele jetzt!';
+                    document.getElementById('surveyProgress').textContent = 'Alle Umfragen wurden beantwortet.';
+                    document.getElementById('submitSurveyBtn').disabled = true;
+                }
+            } else {
+                showError('surveyError', res.error || 'Fehler beim Laden der Umfrage.');
+            }
+        } catch(e) {
+            showError('surveyError', 'Verbindungsfehler.');
+        }
+    }
+    
+    // Show survey panel
+    document.getElementById('btnSurvey').addEventListener('click', () => {
+        showPanel('surveyPanel');
+        loadSurvey();
+    });
+    
+    // Submit survey answer
+    document.getElementById('submitSurveyBtn').addEventListener('click', async () => {
+        if (!currentSurvey) return;
+        
+        const answerText = document.getElementById('surveyAnswerInput').value.trim();
+        if (!answerText) {
+            showError('surveyError', 'Bitte gib eine Antwort ein.');
+            return;
+        }
+        
+        const btn = document.getElementById('submitSurveyBtn');
+        btn.disabled = true;
+        btn.textContent = 'Wird gesendet...';
+        
+        try {
+            const res = await apiCall({
+                action: 'submit_survey',
+                survey_id: currentSurvey.id,
+                answer_text: answerText,
+                device_token: deviceToken
+            });
+            
+            if (res.success) {
+                updateSurveyEnergy(res.data.energy);
+                showSuccess('surveySuccess', `✅ Danke! +10% Energie. Du hast jetzt ${res.data.energy}% Energie.`);
+                
+                // Load next survey after short delay
+                setTimeout(() => {
+                    document.getElementById('surveySuccess').classList.add('hidden');
+                    loadSurvey();
+                }, 1500);
+            } else {
+                showError('surveyError', res.error || 'Fehler beim Speichern.');
+            }
+        } catch(e) {
+            showError('surveyError', 'Verbindungsfehler.');
+        }
+        
+        btn.disabled = false;
+        btn.textContent = '✔ Antwort absenden';
+    });
+    
+    // Skip survey
+    document.getElementById('skipSurveyBtn').addEventListener('click', () => {
+        loadSurvey();
+    });
+    
+    // Enter key to submit survey
+    document.getElementById('surveyAnswerInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            document.getElementById('submitSurveyBtn').click();
+        }
+    });
+    
+    function showSuccess(elId, msg) {
+        const el = document.getElementById(elId);
+        if (el) {
+            el.textContent = msg;
+            el.classList.remove('hidden');
+            setTimeout(() => el.classList.add('hidden'), 4000);
+        }
+    }
 
 })();
 </script>

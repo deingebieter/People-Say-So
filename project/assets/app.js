@@ -256,7 +256,8 @@ class LocalEngine {
         this.currentIndex     = 0;
         this.questionsPlayed  = 0;
         this.roundNumber      = 1;
-        this.energy           = 100;
+        // Start with 50% energy so players can choose to do surveys first or play until depleted
+        this.energy           = 50;
         this.status           = 'active';
         this.players          = data.players.map(p => ({
             player_number:  p.player_number,

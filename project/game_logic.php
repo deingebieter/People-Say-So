@@ -15,10 +15,11 @@ class GameLogic {
         $roundSize = $this->validRoundSize($roundSize);
         $gameCode  = $this->generateCode();
 
+        // Start with 50% energy so players can choose to do surveys first or play until depleted
         $stmt = $this->db->prepare(
             'INSERT INTO games (game_code, mode, status, energy, current_question_index,
              current_round_size, questions_played_this_round, round_number)
-             VALUES (?, ?, ?, 100, 0, ?, 0, 0)'
+             VALUES (?, ?, ?, 50, 0, ?, 0, 0)'
         );
         $stmt->execute([$gameCode, $mode, 'waiting', $roundSize]);
         $gameId = (int)$this->db->lastInsertId();
@@ -545,5 +546,206 @@ class GameLogic {
 
     private function validRoundSize(int $size): int {
         return in_array($size, [5, 10, 25]) ? $size : 5;
+    }
+
+    // ================================================================
+    // SURVEY METHODS
+    // ================================================================
+
+    /**
+     * Get an open survey for the user and their current energy
+     */
+    public function getSurvey(string $deviceToken): array {
+        // Get or create energy record for this user
+        $energy = $this->getOrCreateEnergy($deviceToken);
+
+        // Get surveys that this user hasn't answered yet
+        $stmt = $this->db->prepare('
+            SELECT s.* FROM surveys s
+            WHERE s.status = "open"
+            AND s.id NOT IN (
+                SELECT survey_id FROM survey_responses WHERE device_token = ?
+            )
+            ORDER BY s.current_responses DESC
+            LIMIT 1
+        ');
+        $stmt->execute([$deviceToken]);
+        $survey = $stmt->fetch();
+
+        return [
+            'survey' => $survey ?: null,
+            'energy' => $energy,
+        ];
+    }
+
+    /**
+     * Submit a survey answer and grant energy
+     */
+    public function submitSurvey(int $surveyId, string $answerText, string $deviceToken): array {
+        // Check if survey exists and is open
+        $stmt = $this->db->prepare('SELECT * FROM surveys WHERE id = ? AND status = "open"');
+        $stmt->execute([$surveyId]);
+        $survey = $stmt->fetch();
+        
+        if (!$survey) {
+            throw new RuntimeException('Umfrage nicht gefunden oder bereits geschlossen.');
+        }
+
+        // Check if user already answered this survey
+        $checkStmt = $this->db->prepare('
+            SELECT id FROM survey_responses WHERE survey_id = ? AND device_token = ?
+        ');
+        $checkStmt->execute([$surveyId, $deviceToken]);
+        if ($checkStmt->fetch()) {
+            throw new RuntimeException('Du hast diese Umfrage bereits beantwortet.');
+        }
+
+        // Insert the response
+        $insertStmt = $this->db->prepare('
+            INSERT INTO survey_responses (survey_id, answer_text, device_token)
+            VALUES (?, ?, ?)
+        ');
+        $insertStmt->execute([$surveyId, $answerText, $deviceToken]);
+
+        // Update survey response count
+        $updateStmt = $this->db->prepare('
+            UPDATE surveys SET current_responses = current_responses + 1 WHERE id = ?
+        ');
+        $updateStmt->execute([$surveyId]);
+
+        // Check if survey should be converted to a game question (100 responses)
+        $survey['current_responses']++;
+        if ($survey['current_responses'] >= $survey['target_responses']) {
+            $this->convertSurveyToQuestion($surveyId);
+        }
+
+        // Grant +10% energy to the user (max 100%)
+        $energy = $this->addEnergy($deviceToken, 10);
+
+        return [
+            'success' => true,
+            'energy'  => $energy,
+            'message' => 'Antwort gespeichert! +10% Energie.',
+        ];
+    }
+
+    /**
+     * Get user's current energy
+     */
+    public function getEnergy(string $deviceToken): array {
+        $energy = $this->getOrCreateEnergy($deviceToken);
+        return ['energy' => $energy];
+    }
+
+    /**
+     * Get or create energy record for a user
+     */
+    private function getOrCreateEnergy(string $deviceToken): int {
+        if (empty($deviceToken)) {
+            return 50; // Default energy for anonymous users
+        }
+
+        $stmt = $this->db->prepare('SELECT energy FROM survey_energy WHERE device_token = ?');
+        $stmt->execute([$deviceToken]);
+        $row = $stmt->fetch();
+
+        if ($row) {
+            return (int)$row['energy'];
+        }
+
+        // Create new record with 50% starting energy
+        $insertStmt = $this->db->prepare('
+            INSERT INTO survey_energy (device_token, energy, surveys_completed)
+            VALUES (?, 50, 0)
+        ');
+        $insertStmt->execute([$deviceToken]);
+        return 50;
+    }
+
+    /**
+     * Add energy to user's account (max 100%)
+     */
+    private function addEnergy(string $deviceToken, int $amount): int {
+        if (empty($deviceToken)) {
+            return 50;
+        }
+
+        // Update energy with cap at 100
+        $stmt = $this->db->prepare('
+            UPDATE survey_energy 
+            SET energy = LEAST(100, energy + ?),
+                surveys_completed = surveys_completed + 1
+            WHERE device_token = ?
+        ');
+        $stmt->execute([$amount, $deviceToken]);
+
+        // If no rows updated, create the record
+        if ($stmt->rowCount() === 0) {
+            $insertStmt = $this->db->prepare('
+                INSERT INTO survey_energy (device_token, energy, surveys_completed)
+                VALUES (?, ?, 1)
+            ');
+            $insertStmt->execute([$deviceToken, min(100, 50 + $amount)]);
+            return min(100, 50 + $amount);
+        }
+
+        // Return updated energy
+        return $this->getOrCreateEnergy($deviceToken);
+    }
+
+    /**
+     * Convert a completed survey into a game question
+     */
+    private function convertSurveyToQuestion(int $surveyId): void {
+        $stmt = $this->db->prepare('SELECT * FROM surveys WHERE id = ?');
+        $stmt->execute([$surveyId]);
+        $survey = $stmt->fetch();
+
+        if (!$survey) return;
+
+        // Create the question
+        $qStmt = $this->db->prepare('
+            INSERT INTO questions (question_text, total_respondents, category)
+            VALUES (?, ?, ?)
+        ');
+        $qStmt->execute([
+            $survey['question_text'],
+            $survey['current_responses'],
+            $survey['category']
+        ]);
+        $questionId = (int)$this->db->lastInsertId();
+
+        // Get all responses and group by similar answers
+        $respStmt = $this->db->prepare('
+            SELECT answer_text, COUNT(*) as count
+            FROM survey_responses
+            WHERE survey_id = ?
+            GROUP BY LOWER(TRIM(answer_text))
+            ORDER BY count DESC
+            LIMIT 8
+        ');
+        $respStmt->execute([$surveyId]);
+        $responses = $respStmt->fetchAll();
+
+        // Calculate points based on frequency
+        $totalResponses = $survey['current_responses'];
+        $order = 1;
+        foreach ($responses as $resp) {
+            $points = (int)round(($resp['count'] / $totalResponses) * 100);
+            if ($points < 1) $points = 1;
+
+            $aStmt = $this->db->prepare('
+                INSERT INTO answers (question_id, answer_text, points, display_order)
+                VALUES (?, ?, ?, ?)
+            ');
+            $aStmt->execute([$questionId, $resp['answer_text'], $points, $order]);
+            $order++;
+        }
+
+        // Mark survey as converted
+        $updateStmt = $this->db->prepare('
+            UPDATE surveys SET status = "converted", converted_at = NOW() WHERE id = ?
+        ');
+        $updateStmt->execute([$surveyId]);
     }
 }

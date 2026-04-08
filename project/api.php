@@ -134,6 +134,34 @@ try {
         }
 
         // -----------------------------------------------------------
+        // SURVEY ENDPOINTS
+        // -----------------------------------------------------------
+        case 'get_survey': {
+            $deviceToken = trim($input['device_token'] ?? '');
+            $data = $logic->getSurvey($deviceToken);
+            jsonResponse(true, $data);
+        }
+
+        // -----------------------------------------------------------
+        case 'submit_survey': {
+            $surveyId    = (int)($input['survey_id'] ?? 0);
+            $answerText  = trim($input['answer_text'] ?? '');
+            $deviceToken = trim($input['device_token'] ?? '');
+            if (!$surveyId || !$answerText) {
+                jsonResponse(false, null, 'Umfrage-ID und Antwort erforderlich.');
+            }
+            $data = $logic->submitSurvey($surveyId, $answerText, $deviceToken);
+            jsonResponse(true, $data);
+        }
+
+        // -----------------------------------------------------------
+        case 'get_energy': {
+            $deviceToken = trim($input['device_token'] ?? '');
+            $data = $logic->getEnergy($deviceToken);
+            jsonResponse(true, $data);
+        }
+
+        // -----------------------------------------------------------
         default:
             jsonResponse(false, null, 'Unbekannte Aktion: ' . htmlspecialchars($action));
     }

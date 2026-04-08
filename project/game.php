@@ -90,11 +90,11 @@ if (isset($_POST['mode']) && $_POST['mode'] === 'local') {
         <div class="energy-container">
             <div class="energy-label">⚡ Energie</div>
             <div class="energy-bar-wrap">
-                <div class="energy-bar" id="energyBar" style="width:100%">
+                <div class="energy-bar" id="energyBar" style="width:50%">
                     <span class="energy-shine"></span>
                 </div>
             </div>
-            <div class="energy-value" id="energyValue">100%</div>
+            <div class="energy-value" id="energyValue">50%</div>
         </div>
     </div>
     <div class="header-right">

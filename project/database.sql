@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS games (
     game_code VARCHAR(6) NOT NULL UNIQUE,
     mode ENUM('local','online') NOT NULL DEFAULT 'online',
     status ENUM('waiting','active','round_end','finished') NOT NULL DEFAULT 'waiting',
-    energy INT NOT NULL DEFAULT 100,
+    energy INT NOT NULL DEFAULT 50,
     current_question_index INT NOT NULL DEFAULT 0,
     current_round_size INT NOT NULL DEFAULT 5,
     questions_played_this_round INT NOT NULL DEFAULT 0,
@@ -84,6 +84,42 @@ CREATE TABLE IF NOT EXISTS game_strikes (
     strike_count INT NOT NULL DEFAULT 0,
     FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE,
     UNIQUE KEY unique_game_question (game_id, question_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- SURVEYS SYSTEM (Umfragen)
+-- ============================================================
+
+-- Open surveys that collect answers to become game questions
+CREATE TABLE IF NOT EXISTS surveys (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    question_text VARCHAR(500) NOT NULL,
+    category VARCHAR(100) NOT NULL DEFAULT 'Allgemein',
+    target_responses INT NOT NULL DEFAULT 100,
+    current_responses INT NOT NULL DEFAULT 0,
+    status ENUM('open','closed','converted') NOT NULL DEFAULT 'open',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    converted_at TIMESTAMP NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Survey responses from users
+CREATE TABLE IF NOT EXISTS survey_responses (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    survey_id INT NOT NULL,
+    answer_text VARCHAR(255) NOT NULL,
+    device_token VARCHAR(64) NOT NULL DEFAULT '',
+    responded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (survey_id) REFERENCES surveys(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Track user survey participation for energy rewards
+CREATE TABLE IF NOT EXISTS survey_energy (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    device_token VARCHAR(64) NOT NULL,
+    energy INT NOT NULL DEFAULT 50,
+    surveys_completed INT NOT NULL DEFAULT 0,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_device (device_token)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
@@ -428,3 +464,15 @@ INSERT INTO answers (question_id, answer_text, points, display_order) VALUES
 (32, 'Kopfhörer', 12, 4),
 (32, 'Ausweis', 6, 5),
 (32, 'Ladekabel', 4, 6);
+
+
+-- ============================================================
+-- SAMPLE SURVEYS (Umfragen)
+-- ============================================================
+
+INSERT INTO surveys (question_text, category, target_responses, current_responses, status) VALUES
+('Nenne einen Grund, warum du morgens nicht aufstehen willst', 'Alltag', 100, 45, 'open'),
+('Nenne etwas, das man beim Umzug gerne vergisst', 'Alltag', 100, 32, 'open'),
+('Was tust du, wenn du nicht schlafen kannst?', 'Alltag', 100, 78, 'open'),
+('Nenne ein deutsches Wort, das Ausländer lustig finden', 'Sprache', 100, 23, 'open'),
+('Nenne ein Geschenk, das man immer wieder bekommt', 'Alltag', 100, 56, 'open');
