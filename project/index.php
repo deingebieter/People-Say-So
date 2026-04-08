@@ -413,7 +413,7 @@ if (isset($_GET['error'])) {
     const deviceToken = localStorage.getItem('pss_token') || generateDeviceToken();
     
     function generateDeviceToken() {
-        const token = 'dev_' + Math.random().toString(36).substr(2, 16) + Date.now().toString(36);
+        const token = 'dev_' + Math.random().toString(36).slice(2, 18) + Date.now().toString(36);
         localStorage.setItem('pss_token', token);
         return token;
     }

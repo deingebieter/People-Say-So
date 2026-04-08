@@ -614,8 +614,12 @@ class GameLogic {
         $updateStmt->execute([$surveyId]);
 
         // Check if survey should be converted to a game question (100 responses)
-        $survey['current_responses']++;
-        if ($survey['current_responses'] >= $survey['target_responses']) {
+        // Fetch the updated count from database to ensure accuracy
+        $countStmt = $this->db->prepare('SELECT current_responses, target_responses FROM surveys WHERE id = ?');
+        $countStmt->execute([$surveyId]);
+        $updatedSurvey = $countStmt->fetch();
+        
+        if ($updatedSurvey && $updatedSurvey['current_responses'] >= $updatedSurvey['target_responses']) {
             $this->convertSurveyToQuestion($surveyId);
         }
 

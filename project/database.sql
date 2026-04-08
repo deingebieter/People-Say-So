@@ -24,12 +24,13 @@ CREATE TABLE IF NOT EXISTS answers (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Games table
+-- NOTE: Default 50% energy encourages survey participation before gameplay
 CREATE TABLE IF NOT EXISTS games (
     id INT AUTO_INCREMENT PRIMARY KEY,
     game_code VARCHAR(6) NOT NULL UNIQUE,
     mode ENUM('local','online') NOT NULL DEFAULT 'online',
     status ENUM('waiting','active','round_end','finished') NOT NULL DEFAULT 'waiting',
-    energy INT NOT NULL DEFAULT 50,
+    energy INT NOT NULL DEFAULT 50, -- Start with 50% to encourage survey participation
     current_question_index INT NOT NULL DEFAULT 0,
     current_round_size INT NOT NULL DEFAULT 5,
     questions_played_this_round INT NOT NULL DEFAULT 0,
