@@ -87,6 +87,8 @@ function initGame(config) {
     let pollInterval = null;
     let currentState = null;
     let gameFinished = false;
+    let totalAnswerSlots = 6; // tracks known slot count per question, only grows
+    let lastQuestionId = null; // reset slot count when question changes
 
     /* -- DOM refs -- */
     const playerNameEls   = [document.getElementById('player1Name'), document.getElementById('player2Name')];
@@ -215,9 +217,16 @@ function initGame(config) {
         if (!answerBoard) return;
 
         const revealed = state.revealed_answers || [];
-        // Determine total slots: max display_order seen, or at least 8
-        let maxOrder = 8;
+        // Reset slot count when the question changes so old questions' slot counts don't carry over
+        const qId = state.current_question ? state.current_question.id : null;
+        if (qId !== lastQuestionId) {
+            totalAnswerSlots = 6;
+            lastQuestionId = qId;
+        }
+        // Determine total slots: starts at 6, only grows as we see higher display_order values
+        let maxOrder = totalAnswerSlots;
         revealed.forEach(a => { if (a.display_order > maxOrder) maxOrder = a.display_order; });
+        totalAnswerSlots = maxOrder;
 
         // Build map of revealed answers by position
         const revealedMap = {};
