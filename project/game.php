@@ -12,12 +12,6 @@
         <header class="header">
             <a href="index.php" class="back-btn">← Zurück</a>
             <h1 class="logo-small">People Say So</h1>
-            <div class="energy-container-small">
-                <div class="energy-bar-small">
-                    <div class="energy-fill" id="energyFill"></div>
-                </div>
-                <span class="energy-text-small" id="energyText">50%</span>
-            </div>
         </header>
 
         <!-- Game Content -->
@@ -26,20 +20,6 @@
             <div class="game-state" id="loadingState">
                 <div class="loading-spinner"></div>
                 <p>Lade Frage...</p>
-            </div>
-
-            <!-- No Energy State -->
-            <div class="game-state" id="noEnergyState" style="display: none;">
-                <div class="no-energy-message">
-                    <span class="big-icon">⚡</span>
-                    <h2>Nicht genug Energie!</h2>
-                    <p>Du brauchst mindestens 10% Energie zum Spielen.</p>
-                    <p>Aktuelle Energie: <strong id="currentEnergyDisplay">0%</strong></p>
-                    <div class="action-buttons-row">
-                        <a href="index.php" class="btn btn-secondary">Zur Startseite</a>
-                        <button class="btn btn-primary" onclick="openSurveyFromGame()">Umfrage beantworten</button>
-                    </div>
-                </div>
             </div>
 
             <!-- No Questions State -->

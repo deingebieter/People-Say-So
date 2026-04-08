@@ -8,15 +8,9 @@
 </head>
 <body>
     <div class="container">
-        <!-- Header with Energy Bar -->
+        <!-- Header -->
         <header class="header">
             <h1 class="logo">People Say So</h1>
-            <div class="energy-container">
-                <div class="energy-bar">
-                    <div class="energy-fill" id="energyFill"></div>
-                </div>
-                <span class="energy-text" id="energyText">50%</span>
-            </div>
         </header>
 
         <!-- Main Menu -->
@@ -52,7 +46,6 @@
                     <span class="btn-icon">🎮</span>
                     <span class="btn-text">
                         <strong>Spielen</strong>
-                        <small>-10% Energie pro Runde</small>
                     </span>
                 </button>
 
@@ -61,26 +54,14 @@
                     <span class="btn-icon">📝</span>
                     <span class="btn-text">
                         <strong>Umfrage beantworten</strong>
-                        <small>+10% Energie pro Frage</small>
                     </span>
                 </button>
-            </div>
-
-            <!-- Energy Warning -->
-            <div class="energy-warning" id="energyWarning" style="display: none;">
-                <p>⚡ Du hast nicht genug Energie zum Spielen!</p>
-                <p>Beantworte Umfragen, um Energie zu bekommen.</p>
             </div>
 
             <!-- Info Section -->
             <div class="info-section">
                 <h3>Wie funktioniert es?</h3>
                 <div class="info-cards">
-                    <div class="info-card">
-                        <span class="info-icon">🔋</span>
-                        <h4>Energie</h4>
-                        <p>Du startest mit 50% Energie. Spielen verbraucht Energie, Umfragen laden sie auf.</p>
-                    </div>
                     <div class="info-card">
                         <span class="info-icon">📊</span>
                         <h4>Umfragen</h4>

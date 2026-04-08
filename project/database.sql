@@ -2,12 +2,11 @@
 -- MySQL Database: mseet_41580932_p
 -- Server: sql103.hstn.me:3306
 
--- Users table to track player data and energy
+-- Users table to track player data
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     session_id VARCHAR(255) UNIQUE NOT NULL,
     username VARCHAR(100) DEFAULT NULL,
-    energy INT DEFAULT 50,  -- Start with 50% energy
     total_points INT DEFAULT 0,
     games_played INT DEFAULT 0,
     surveys_completed INT DEFAULT 0,
@@ -72,17 +71,6 @@ CREATE TABLE IF NOT EXISTS game_sessions (
     completed_at TIMESTAMP NULL DEFAULT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (question_id) REFERENCES game_questions(id) ON DELETE CASCADE
-);
-
--- Energy log to track energy changes
-CREATE TABLE IF NOT EXISTS energy_log (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    change_amount INT NOT NULL,  -- Positive for gain, negative for loss
-    reason ENUM('game_played', 'survey_completed', 'initial', 'bonus') NOT NULL,
-    new_total INT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- Insert sample surveys for testing

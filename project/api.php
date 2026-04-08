@@ -42,7 +42,6 @@ try {
                 'success' => true,
                 'user' => [
                     'id' => $user['id'],
-                    'energy' => (int)$user['energy'],
                     'total_points' => (int)$user['total_points'],
                     'games_played' => (int)$user['games_played'],
                     'surveys_completed' => (int)$user['surveys_completed']
@@ -108,25 +107,7 @@ try {
         // GAME ACTIONS
         // =====================
         
-        case 'can_play':
-            echo json_encode([
-                'success' => true,
-                'can_play' => canPlay($userId),
-                'energy' => getUserEnergy($userId),
-                'required_energy' => ENERGY_PER_GAME
-            ]);
-            break;
-
         case 'get_question':
-            if (!canPlay($userId)) {
-                echo json_encode([
-                    'success' => false,
-                    'message' => 'Nicht genug Energie. Beantworte Umfragen um Energie zu bekommen!',
-                    'energy' => getUserEnergy($userId)
-                ]);
-                break;
-            }
-            
             $question = getRandomGameQuestion($userId);
             if ($question) {
                 echo json_encode([

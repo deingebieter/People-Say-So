@@ -7,10 +7,6 @@
 require_once 'db.php';
 
 // Constants
-define('INITIAL_ENERGY', 50);      // Start with 50% energy
-define('ENERGY_PER_SURVEY', 10);   // +10% energy per survey question
-define('ENERGY_PER_GAME', 10);     // -10% energy per game round
-define('MAX_ENERGY', 100);         // Maximum energy
 define('MIN_RESPONSES_FOR_GAME', 100); // Minimum responses to convert survey to game
 
 /**
@@ -25,13 +21,10 @@ function getOrCreateUser($sessionId) {
     $user = $stmt->fetch();
     
     if (!$user) {
-        // Create new user with 50% initial energy
-        $stmt = $db->prepare("INSERT INTO users (session_id, energy) VALUES (?, ?)");
-        $stmt->execute([$sessionId, INITIAL_ENERGY]);
+        // Create new user
+        $stmt = $db->prepare("INSERT INTO users (session_id) VALUES (?)");
+        $stmt->execute([$sessionId]);
         $userId = $db->lastInsertId();
-        
-        // Log initial energy
-        logEnergyChange($userId, INITIAL_ENERGY, 'initial', INITIAL_ENERGY);
         
         $stmt = $db->prepare("SELECT * FROM users WHERE id = ?");
         $stmt->execute([$userId]);
@@ -39,77 +32,6 @@ function getOrCreateUser($sessionId) {
     }
     
     return $user;
-}
-
-/**
- * Get user's current energy
- */
-function getUserEnergy($userId) {
-    $db = getDB();
-    $stmt = $db->prepare("SELECT energy FROM users WHERE id = ?");
-    $stmt->execute([$userId]);
-    $result = $stmt->fetch();
-    return $result ? (int)$result['energy'] : 0;
-}
-
-/**
- * Update user's energy
- */
-function updateEnergy($userId, $amount, $reason) {
-    $db = getDB();
-    
-    // Get current energy
-    $currentEnergy = getUserEnergy($userId);
-    
-    // Calculate new energy (clamped between 0 and MAX_ENERGY)
-    $newEnergy = max(0, min(MAX_ENERGY, $currentEnergy + $amount));
-    
-    // Update energy
-    $stmt = $db->prepare("UPDATE users SET energy = ? WHERE id = ?");
-    $stmt->execute([$newEnergy, $userId]);
-    
-    // Log the change
-    logEnergyChange($userId, $amount, $reason, $newEnergy);
-    
-    return $newEnergy;
-}
-
-/**
- * Log energy changes
- */
-function logEnergyChange($userId, $amount, $reason, $newTotal) {
-    $db = getDB();
-    $stmt = $db->prepare("INSERT INTO energy_log (user_id, change_amount, reason, new_total) VALUES (?, ?, ?, ?)");
-    $stmt->execute([$userId, $amount, $reason, $newTotal]);
-}
-
-/**
- * Check if user can play (has enough energy)
- */
-function canPlay($userId) {
-    return getUserEnergy($userId) >= ENERGY_PER_GAME;
-}
-
-/**
- * Consume energy for playing a game round
- */
-function consumeEnergyForGame($userId) {
-    if (!canPlay($userId)) {
-        return false;
-    }
-    updateEnergy($userId, -ENERGY_PER_GAME, 'game_played');
-    return true;
-}
-
-/**
- * Award energy for completing a survey
- */
-function awardEnergyForSurvey($userId) {
-    $currentEnergy = getUserEnergy($userId);
-    if ($currentEnergy >= MAX_ENERGY) {
-        return $currentEnergy; // Already at max
-    }
-    return updateEnergy($userId, ENERGY_PER_SURVEY, 'survey_completed');
 }
 
 // =====================
@@ -174,16 +96,12 @@ function submitSurveyResponse($userId, $surveyId, $answer) {
     $stmt = $db->prepare("UPDATE users SET surveys_completed = surveys_completed + 1 WHERE id = ?");
     $stmt->execute([$userId]);
     
-    // Award energy
-    $newEnergy = awardEnergyForSurvey($userId);
-    
     // Check if survey should be converted to game question
     checkAndConvertSurvey($surveyId);
     
     return [
         'success' => true, 
-        'message' => 'Antwort gespeichert! +' . ENERGY_PER_SURVEY . '% Energie',
-        'new_energy' => $newEnergy
+        'message' => 'Antwort gespeichert!'
     ];
 }
 
@@ -325,11 +243,6 @@ function checkAnswer($questionId, $userAnswer) {
 function startGameSession($userId, $questionId) {
     $db = getDB();
     
-    // Consume energy
-    if (!consumeEnergyForGame($userId)) {
-        return ['success' => false, 'message' => 'Nicht genug Energie'];
-    }
-    
     // Create game session
     $stmt = $db->prepare("INSERT INTO game_sessions (user_id, question_id) VALUES (?, ?)");
     $stmt->execute([$userId, $questionId]);
@@ -344,8 +257,7 @@ function startGameSession($userId, $questionId) {
     
     return [
         'success' => true, 
-        'session_id' => $db->lastInsertId(),
-        'energy' => getUserEnergy($userId)
+        'session_id' => $db->lastInsertId()
     ];
 }
 
@@ -382,7 +294,6 @@ function getUserStats($userId) {
     $db = getDB();
     $stmt = $db->prepare("
         SELECT 
-            energy,
             total_points,
             games_played,
             surveys_completed

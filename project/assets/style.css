@@ -32,11 +32,6 @@
     --color-success: #13563B;
     --color-warning: #A46928;
     
-    /* Energy colors */
-    --energy-low: #C70000;
-    --energy-medium: #E4A700;
-    --energy-high: #13563B;
-    
     /* Layout */
     --container-max-width: 800px;
     --border-radius: 12px;
@@ -96,68 +91,6 @@ body {
 .logo-small {
     font-size: 20px;
     font-weight: bold;
-    color: var(--color-gold);
-}
-
-/* Energy Bar */
-.energy-container {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.energy-bar {
-    width: 150px;
-    height: 24px;
-    background: var(--color-black);
-    border-radius: var(--border-radius-sm);
-    border: 2px solid var(--color-gold);
-    overflow: hidden;
-}
-
-.energy-fill {
-    height: 100%;
-    background: var(--energy-high);
-    transition: width 0.5s ease, background-color 0.3s ease;
-}
-
-.energy-fill.energy-low {
-    background: var(--energy-low);
-}
-
-.energy-fill.energy-medium {
-    background: var(--energy-medium);
-}
-
-.energy-fill.energy-high {
-    background: var(--energy-high);
-}
-
-.energy-text {
-    font-weight: bold;
-    font-size: 18px;
-    color: var(--color-gold);
-    min-width: 50px;
-}
-
-/* Small energy bar for game page */
-.energy-container-small {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.energy-bar-small {
-    width: 80px;
-    height: 16px;
-    background: var(--color-black);
-    border-radius: var(--border-radius-sm);
-    border: 2px solid var(--color-gold);
-    overflow: hidden;
-}
-
-.energy-text-small {
-    font-size: 14px;
     color: var(--color-gold);
 }
 
@@ -304,21 +237,6 @@ body {
 .btn-text small {
     font-size: 14px;
     opacity: 0.8;
-}
-
-/* Energy Warning */
-.energy-warning {
-    background: rgba(199, 0, 0, 0.2);
-    border: 2px solid var(--color-red);
-    border-radius: var(--border-radius);
-    padding: 20px;
-    text-align: center;
-    margin: 20px auto;
-    max-width: 400px;
-}
-
-.energy-warning p {
-    margin: 5px 0;
 }
 
 /* Info Section */
@@ -484,13 +402,6 @@ body {
     margin: 15px 0;
 }
 
-.energy-bonus {
-    font-size: 20px;
-    color: var(--color-success);
-    font-weight: bold;
-    margin-bottom: 20px;
-}
-
 .survey-error {
     background: rgba(199, 0, 0, 0.2);
     border: 1px solid var(--color-red);
@@ -543,15 +454,15 @@ body {
     to { transform: rotate(360deg); }
 }
 
-/* No Energy / No Questions States */
-.no-energy-message,
-.no-questions-message {
+/* No Questions / Generic Game Message States */
+.no-questions-message,
+.game-message {
     text-align: center;
     padding: 40px 20px;
 }
 
-.no-energy-message h2,
-.no-questions-message h2 {
+.no-questions-message h2,
+.game-message h2 {
     color: var(--color-gold);
     margin: 20px 0;
 }
@@ -862,10 +773,6 @@ body {
     
     .logo {
         font-size: 24px;
-    }
-    
-    .energy-bar {
-        width: 120px;
     }
     
     .stats-container {

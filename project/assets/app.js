@@ -40,7 +40,7 @@ async function apiPost(action, data = {}) {
 }
 
 // =====================
-// USER & ENERGY FUNCTIONS
+// USER FUNCTIONS
 // =====================
 
 async function loadUserData() {
@@ -48,34 +48,10 @@ async function loadUserData() {
         const result = await apiGet('get_user');
         if (result.success) {
             currentUser = result.user;
-            updateEnergyDisplay(currentUser.energy);
             updateStatsDisplay(currentUser);
-            updatePlayButton(currentUser.energy);
         }
     } catch (error) {
         console.error('Error loading user data:', error);
-    }
-}
-
-function updateEnergyDisplay(energy) {
-    const energyFill = document.getElementById('energyFill');
-    const energyText = document.getElementById('energyText');
-    
-    if (energyFill) {
-        energyFill.style.width = `${energy}%`;
-        
-        // Change color based on energy level
-        if (energy <= 20) {
-            energyFill.className = 'energy-fill energy-low';
-        } else if (energy <= 50) {
-            energyFill.className = 'energy-fill energy-medium';
-        } else {
-            energyFill.className = 'energy-fill energy-high';
-        }
-    }
-    
-    if (energyText) {
-        energyText.textContent = `${energy}%`;
     }
 }
 
@@ -87,29 +63,6 @@ function updateStatsDisplay(user) {
     if (totalPoints) totalPoints.textContent = user.total_points || 0;
     if (gamesPlayed) gamesPlayed.textContent = user.games_played || 0;
     if (surveysCompleted) surveysCompleted.textContent = user.surveys_completed || 0;
-}
-
-function updatePlayButton(energy) {
-    const playBtn = document.getElementById('playBtn');
-    const energyWarning = document.getElementById('energyWarning');
-    
-    if (energy < 10) {
-        if (playBtn) {
-            playBtn.disabled = true;
-            playBtn.classList.add('btn-disabled');
-        }
-        if (energyWarning) {
-            energyWarning.style.display = 'block';
-        }
-    } else {
-        if (playBtn) {
-            playBtn.disabled = false;
-            playBtn.classList.remove('btn-disabled');
-        }
-        if (energyWarning) {
-            energyWarning.style.display = 'none';
-        }
-    }
 }
 
 // =====================
@@ -176,7 +129,7 @@ function renderSurvey(survey) {
                    autocomplete="off"
                    autofocus>
             <button type="submit" class="btn btn-primary btn-block">
-                Absenden (+10% Energie)
+                Absenden
             </button>
         </form>
         <div class="survey-info">
@@ -202,21 +155,11 @@ async function submitSurveyAnswer(event) {
         });
         
         if (result.success) {
-            // Update energy display
-            if (result.new_energy !== undefined) {
-                updateEnergyDisplay(result.new_energy);
-                if (currentUser) {
-                    currentUser.energy = result.new_energy;
-                    updatePlayButton(result.new_energy);
-                }
-            }
-            
             // Show success and load next survey
             surveyContent.innerHTML = `
                 <div class="survey-success">
                     <span class="big-icon">✅</span>
                     <h3>Danke für deine Antwort!</h3>
-                    <p class="energy-bonus">+10% Energie erhalten!</p>
                     <button class="btn btn-primary" onclick="loadSurvey()">Nächste Umfrage</button>
                     <button class="btn btn-secondary" onclick="closeSurveyModal()">Schließen</button>
                 </div>
@@ -258,21 +201,10 @@ async function initGame() {
     showGameState('loadingState');
     
     try {
-        // First check energy and load user data
+        // Load user data
         const userResult = await apiGet('get_user');
         if (userResult.success) {
             currentUser = userResult.user;
-            updateEnergyDisplay(currentUser.energy);
-        }
-        
-        // Check if can play
-        const canPlayResult = await apiGet('can_play');
-        
-        if (!canPlayResult.can_play) {
-            const energyValue = canPlayResult.energy !== undefined ? canPlayResult.energy : (currentUser ? currentUser.energy : 0);
-            document.getElementById('currentEnergyDisplay').textContent = `${energyValue}%`;
-            showGameState('noEnergyState');
-            return;
         }
         
         // Get a question
@@ -291,18 +223,11 @@ async function initGame() {
         });
         
         if (!startResult.success) {
-            if (startResult.message.includes('Energie')) {
-                const energyValue = startResult.energy !== undefined ? startResult.energy : (currentUser ? currentUser.energy : 0);
-                document.getElementById('currentEnergyDisplay').textContent = `${energyValue}%`;
-                showGameState('noEnergyState');
-            } else {
-                showGameError(startResult.message);
-            }
+            showGameError(startResult.message);
             return;
         }
         
         gameSession = startResult.session_id;
-        updateEnergyDisplay(startResult.energy);
         
         // Get all answers (hidden)
         const answersResult = await apiGet('get_answers', {
@@ -345,7 +270,7 @@ function showGameError(message) {
     const loadingState = document.getElementById('loadingState');
     if (loadingState) {
         loadingState.innerHTML = `
-            <div class="no-energy-message">
+            <div class="game-message">
                 <span class="big-icon">⚠️</span>
                 <h2>Fehler</h2>
                 <p>${escapeHtml(message)}</p>
@@ -356,7 +281,7 @@ function showGameError(message) {
 }
 
 function showGameState(stateId) {
-    const states = ['loadingState', 'noEnergyState', 'noQuestionsState', 'gamePlayState', 'gameOverState'];
+    const states = ['loadingState', 'noQuestionsState', 'gamePlayState', 'gameOverState'];
     states.forEach(state => {
         const element = document.getElementById(state);
         if (element) {
@@ -520,16 +445,8 @@ async function endGame(allFound) {
 async function playAgain() {
     // Reload user data first
     await loadUserData();
-    
-    // Check energy
-    if (currentUser && currentUser.energy < 10) {
-        const energyValue = currentUser.energy !== undefined ? currentUser.energy : 0;
-        document.getElementById('currentEnergyDisplay').textContent = `${energyValue}%`;
-        showGameState('noEnergyState');
-    } else {
-        // Reset and start new game
-        initGame();
-    }
+    // Reset and start new game
+    initGame();
 }
 
 function openSurveyFromGame() {
