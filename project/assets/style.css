@@ -74,7 +74,7 @@ body {
    ===================== */
 .header {
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
     padding: 15px 0;
     border-bottom: 2px solid var(--color-gold);
@@ -92,6 +92,14 @@ body {
     font-size: 20px;
     font-weight: bold;
     color: var(--color-gold);
+}
+
+.game-header {
+    justify-content: space-between;
+}
+
+.header-spacer {
+    width: 80px; /* matches approximate back-btn width for symmetry */
 }
 
 .back-btn {
@@ -765,10 +773,14 @@ body {
    Responsive Design
    ===================== */
 @media (max-width: 600px) {
-    .header {
+    .game-header {
         flex-direction: column;
         gap: 15px;
         text-align: center;
+    }
+    
+    .header-spacer {
+        display: none;
     }
     
     .logo {

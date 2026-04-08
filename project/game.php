@@ -9,9 +9,10 @@
 <body>
     <div class="container game-container">
         <!-- Header -->
-        <header class="header">
+        <header class="header game-header">
             <a href="index.php" class="back-btn">← Zurück</a>
             <h1 class="logo-small">People Say So</h1>
+            <div class="header-spacer"></div>
         </header>
 
         <!-- Game Content -->
