@@ -1,204 +1,145 @@
 <?php
-/**
- * API Endpoint for AJAX requests
- * People Say So
- */
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/game_logic.php';
 
-// Start session
-session_start();
-
-// Headers for JSON responses
+// CORS & content type headers
 header('Content-Type: application/json; charset=utf-8');
-// CORS - For production, replace with your actual domain
-$allowed_origin = getenv('ALLOWED_ORIGIN') ?: (isset($_SERVER['HTTP_HOST']) ? 'https://' . $_SERVER['HTTP_HOST'] : '');
-if ($allowed_origin) {
-    header('Access-Control-Allow-Origin: ' . $allowed_origin);
-}
-header('Access-Control-Allow-Methods: GET, POST');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, X-Requested-With');
 
-require_once 'game_logic.php';
-
-// Get or create session ID
-if (!isset($_SESSION['user_session'])) {
-    $_SESSION['user_session'] = bin2hex(random_bytes(32));
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(204);
+    exit;
 }
 
-// Get action
-$action = $_GET['action'] ?? $_POST['action'] ?? '';
+function jsonResponse(bool $success, mixed $data = null, string $error = ''): void {
+    echo json_encode([
+        'success' => $success,
+        'data'    => $data,
+        'error'   => $error,
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// Parse input
+$input = [];
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $raw = file_get_contents('php://input');
+    if ($raw) {
+        $input = json_decode($raw, true) ?? [];
+    }
+    // Also merge $_POST for form submissions
+    $input = array_merge($_POST, $input);
+} else {
+    $input = $_GET;
+}
+
+$action = trim($input['action'] ?? '');
+if (!$action) {
+    jsonResponse(false, null, 'Keine Aktion angegeben.');
+}
+
+$logic = new GameLogic();
 
 try {
-    // Get user
-    $user = getOrCreateUser($_SESSION['user_session']);
-    $userId = $user['id'];
-
     switch ($action) {
-        // =====================
-        // USER ACTIONS
-        // =====================
-        
-        case 'get_user':
-            echo json_encode([
-                'success' => true,
-                'user' => [
-                    'id' => $user['id'],
-                    'total_points' => (int)$user['total_points'],
-                    'games_played' => (int)$user['games_played'],
-                    'surveys_completed' => (int)$user['surveys_completed']
-                ]
-            ]);
-            break;
 
-        case 'get_stats':
-            $stats = getUserStats($userId);
-            echo json_encode([
-                'success' => true,
-                'stats' => $stats
-            ]);
-            break;
-
-        // =====================
-        // SURVEY ACTIONS
-        // =====================
-        
-        case 'get_survey':
-            $survey = getNextSurvey($userId);
-            if ($survey) {
-                echo json_encode([
-                    'success' => true,
-                    'survey' => [
-                        'id' => $survey['id'],
-                        'question' => $survey['question'],
-                        'total_responses' => (int)$survey['total_responses']
-                    ]
-                ]);
-            } else {
-                echo json_encode([
-                    'success' => false,
-                    'message' => 'Keine weiteren Umfragen verfügbar'
-                ]);
+        // -----------------------------------------------------------
+        case 'create_game': {
+            $playerName = trim($input['player_name'] ?? '');
+            $roundSize  = (int)($input['round_size'] ?? 5);
+            $mode       = in_array($input['mode'] ?? '', ['local', 'online']) ? $input['mode'] : 'online';
+            if (!$playerName) {
+                jsonResponse(false, null, 'Spielername erforderlich.');
             }
-            break;
+            $data = $logic->createGame($mode, $playerName, $roundSize);
+            jsonResponse(true, $data);
+        }
 
-        case 'get_surveys':
-            $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 5;
-            $surveys = getAvailableSurveys($userId, $limit);
-            echo json_encode([
-                'success' => true,
-                'surveys' => $surveys,
-                'count' => count($surveys)
-            ]);
-            break;
-
-        case 'submit_survey':
-            $surveyId = $_POST['survey_id'] ?? null;
-            $answer = $_POST['answer'] ?? '';
-            
-            if (!$surveyId) {
-                echo json_encode(['success' => false, 'message' => 'Umfrage-ID fehlt']);
-                break;
+        // -----------------------------------------------------------
+        case 'join_game': {
+            $gameCode   = strtoupper(trim($input['game_code'] ?? ''));
+            $playerName = trim($input['player_name'] ?? '');
+            if (!$gameCode || !$playerName) {
+                jsonResponse(false, null, 'Spielcode und Name erforderlich.');
             }
-            
-            $result = submitSurveyResponse($userId, (int)$surveyId, $answer);
-            echo json_encode($result);
-            break;
+            $data = $logic->joinGame($gameCode, $playerName);
+            jsonResponse(true, $data);
+        }
 
-        // =====================
-        // GAME ACTIONS
-        // =====================
-        
-        case 'get_question':
-            $question = getRandomGameQuestion($userId);
-            if ($question) {
-                echo json_encode([
-                    'success' => true,
-                    'question' => [
-                        'id' => $question['id'],
-                        'question' => $question['question'],
-                        'answer_count' => (int)$question['answer_count']
-                    ]
-                ]);
-            } else {
-                echo json_encode([
-                    'success' => false,
-                    'message' => 'Keine Spielfragen verfügbar. Mehr Umfragen werden benötigt!'
-                ]);
+        // -----------------------------------------------------------
+        case 'start_round': {
+            $gameId    = (int)($input['game_id'] ?? 0);
+            $roundSize = (int)($input['round_size'] ?? 5);
+            if (!$gameId) {
+                jsonResponse(false, null, 'Spiel-ID erforderlich.');
             }
-            break;
+            $data = $logic->startRound($gameId, $roundSize);
+            jsonResponse(true, $data);
+        }
 
-        case 'start_game':
-            $questionId = $_POST['question_id'] ?? null;
-            
-            if (!$questionId) {
-                echo json_encode(['success' => false, 'message' => 'Frage-ID fehlt']);
-                break;
+        // -----------------------------------------------------------
+        case 'submit_answer': {
+            $gameId       = (int)($input['game_id'] ?? 0);
+            $playerNumber = (int)($input['player_number'] ?? 0);
+            $answerText   = trim($input['answer_text'] ?? '');
+            if (!$gameId || !$playerNumber || !$answerText) {
+                jsonResponse(false, null, 'Pflichtfelder fehlen.');
             }
-            
-            $result = startGameSession($userId, (int)$questionId);
-            echo json_encode($result);
-            break;
+            $data = $logic->submitAnswer($gameId, $playerNumber, $answerText);
+            jsonResponse(true, $data);
+        }
 
-        case 'check_answer':
-            $questionId = $_POST['question_id'] ?? null;
-            $answer = $_POST['answer'] ?? '';
-            
-            if (!$questionId) {
-                echo json_encode(['success' => false, 'message' => 'Frage-ID fehlt']);
-                break;
+        // -----------------------------------------------------------
+        case 'get_state': {
+            $gameId       = (int)($input['game_id'] ?? 0);
+            $playerNumber = (int)($input['player_number'] ?? 0);
+            if (!$gameId) {
+                jsonResponse(false, null, 'Spiel-ID erforderlich.');
             }
-            
-            $result = checkAnswer((int)$questionId, $answer);
-            echo json_encode([
-                'success' => true,
-                'result' => $result
-            ]);
-            break;
+            $data = $logic->getGameState($gameId, $playerNumber ?: null);
+            jsonResponse(true, $data);
+        }
 
-        case 'get_answers':
-            $questionId = $_GET['question_id'] ?? null;
-            
-            if (!$questionId) {
-                echo json_encode(['success' => false, 'message' => 'Frage-ID fehlt']);
-                break;
+        // -----------------------------------------------------------
+        case 'pass_turn': {
+            $gameId       = (int)($input['game_id'] ?? 0);
+            $playerNumber = (int)($input['player_number'] ?? 0);
+            if (!$gameId || !$playerNumber) {
+                jsonResponse(false, null, 'Pflichtfelder fehlen.');
             }
-            
-            $answers = getGameAnswers((int)$questionId);
-            echo json_encode([
-                'success' => true,
-                'answers' => $answers
-            ]);
-            break;
+            $data = $logic->passTurn($gameId, $playerNumber);
+            jsonResponse(true, $data);
+        }
 
-        case 'complete_game':
-            $sessionId = $_POST['session_id'] ?? null;
-            $score = $_POST['score'] ?? 0;
-            
-            if (!$sessionId) {
-                echo json_encode(['success' => false, 'message' => 'Session-ID fehlt']);
-                break;
+        // -----------------------------------------------------------
+        case 'next_question': {
+            $gameId = (int)($input['game_id'] ?? 0);
+            if (!$gameId) {
+                jsonResponse(false, null, 'Spiel-ID erforderlich.');
             }
-            
-            completeGameSession((int)$sessionId, (int)$score);
-            $stats = getUserStats($userId);
-            
-            echo json_encode([
-                'success' => true,
-                'message' => 'Spiel abgeschlossen!',
-                'stats' => $stats
-            ]);
-            break;
+            $data = $logic->nextQuestion($gameId);
+            jsonResponse(true, $data);
+        }
 
+        // -----------------------------------------------------------
+        case 'end_round': {
+            $gameId = (int)($input['game_id'] ?? 0);
+            if (!$gameId) {
+                jsonResponse(false, null, 'Spiel-ID erforderlich.');
+            }
+            $data = $logic->endRound($gameId);
+            jsonResponse(true, $data);
+        }
+
+        // -----------------------------------------------------------
         default:
-            echo json_encode([
-                'success' => false,
-                'message' => 'Unbekannte Aktion: ' . htmlspecialchars($action)
-            ]);
+            jsonResponse(false, null, 'Unbekannte Aktion: ' . htmlspecialchars($action));
     }
-} catch (Exception $e) {
-    error_log("API Error: " . $e->getMessage());
-    echo json_encode([
-        'success' => false,
-        'message' => 'Ein Fehler ist aufgetreten: ' . $e->getMessage()
-    ]);
+} catch (RuntimeException $e) {
+    jsonResponse(false, null, $e->getMessage());
+} catch (Throwable $e) {
+    error_log('[PeopleSaySo] ' . $e->getMessage());
+    jsonResponse(false, null, 'Interner Serverfehler.');
 }
-?>
