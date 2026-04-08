@@ -1,6 +1,9 @@
 <?php
 require_once __DIR__ . '/db.php';
 
+// Starting energy constant - players begin with 50% to encourage survey participation
+define('DEFAULT_STARTING_ENERGY', 50);
+
 class GameLogic {
     private PDO $db;
 
@@ -15,13 +18,13 @@ class GameLogic {
         $roundSize = $this->validRoundSize($roundSize);
         $gameCode  = $this->generateCode();
 
-        // Start with 50% energy so players can choose to do surveys first or play until depleted
+        // Start with configured energy so players can choose to do surveys first or play until depleted
         $stmt = $this->db->prepare(
             'INSERT INTO games (game_code, mode, status, energy, current_question_index,
              current_round_size, questions_played_this_round, round_number)
-             VALUES (?, ?, ?, 50, 0, ?, 0, 0)'
+             VALUES (?, ?, ?, ?, 0, ?, 0, 0)'
         );
-        $stmt->execute([$gameCode, $mode, 'waiting', $roundSize]);
+        $stmt->execute([$gameCode, $mode, 'waiting', DEFAULT_STARTING_ENERGY, $roundSize]);
         $gameId = (int)$this->db->lastInsertId();
 
         $token    = $this->generateToken();
@@ -646,7 +649,7 @@ class GameLogic {
      */
     private function getOrCreateEnergy(string $deviceToken): int {
         if (empty($deviceToken)) {
-            return 50; // Default energy for anonymous users
+            return DEFAULT_STARTING_ENERGY; // Default energy for anonymous users
         }
 
         $stmt = $this->db->prepare('SELECT energy FROM survey_energy WHERE device_token = ?');
@@ -657,13 +660,13 @@ class GameLogic {
             return (int)$row['energy'];
         }
 
-        // Create new record with 50% starting energy
+        // Create new record with default starting energy
         $insertStmt = $this->db->prepare('
             INSERT INTO survey_energy (device_token, energy, surveys_completed)
-            VALUES (?, 50, 0)
+            VALUES (?, ?, 0)
         ');
-        $insertStmt->execute([$deviceToken]);
-        return 50;
+        $insertStmt->execute([$deviceToken, DEFAULT_STARTING_ENERGY]);
+        return DEFAULT_STARTING_ENERGY;
     }
 
     /**
@@ -671,7 +674,7 @@ class GameLogic {
      */
     private function addEnergy(string $deviceToken, int $amount): int {
         if (empty($deviceToken)) {
-            return 50;
+            return DEFAULT_STARTING_ENERGY;
         }
 
         // Update energy with cap at 100
@@ -689,8 +692,8 @@ class GameLogic {
                 INSERT INTO survey_energy (device_token, energy, surveys_completed)
                 VALUES (?, ?, 1)
             ');
-            $insertStmt->execute([$deviceToken, min(100, 50 + $amount)]);
-            return min(100, 50 + $amount);
+            $insertStmt->execute([$deviceToken, min(100, DEFAULT_STARTING_ENERGY + $amount)]);
+            return min(100, DEFAULT_STARTING_ENERGY + $amount);
         }
 
         // Return updated energy

@@ -114,10 +114,11 @@ CREATE TABLE IF NOT EXISTS survey_responses (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Track user survey participation for energy rewards
+-- Energy value should be between 0 and 100 (application enforces this constraint)
 CREATE TABLE IF NOT EXISTS survey_energy (
     id INT AUTO_INCREMENT PRIMARY KEY,
     device_token VARCHAR(64) NOT NULL,
-    energy INT NOT NULL DEFAULT 50,
+    energy INT NOT NULL DEFAULT 50 CHECK (energy >= 0 AND energy <= 100), -- Valid range: 0-100%
     surveys_completed INT NOT NULL DEFAULT 0,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY unique_device (device_token)
