@@ -12,14 +12,66 @@
 <body class="game-page" data-theme="light">
 
 <?php
-$gameId       = isset($_GET['game_id'])       ? (int)$_GET['game_id']       : 0;
-$playerNumber = isset($_GET['player_number']) ? (int)$_GET['player_number'] : 1;
-$gameCode     = isset($_GET['game_code'])     ? htmlspecialchars($_GET['game_code']) : '';
-$mode         = isset($_GET['mode'])          && $_GET['mode'] === 'local' ? 'local' : 'online';
+// ----------------------------------------------------------------
+// Local game setup via POST (no game_id needed, runs fully in-browser)
+// ----------------------------------------------------------------
+$localData    = 'null';
+$gameId       = 0;
+$playerNumber = 1;
+$gameCode     = '';
+$mode         = 'online';
 
-if (!$gameId) {
-    echo '<script>window.location.href="index.php";</script>';
-    exit;
+if (isset($_POST['mode']) && $_POST['mode'] === 'local') {
+    $mode  = 'local';
+    $p1    = trim($_POST['p1'] ?? '');
+    $p2    = trim($_POST['p2'] ?? '');
+    $sizes = [5, 10, 25];
+    $roundSize = in_array((int)($_POST['round_size'] ?? 5), $sizes) ? (int)$_POST['round_size'] : 5;
+
+    if (!$p1 || !$p2) {
+        header('Location: index.php');
+        exit;
+    }
+
+    require_once __DIR__ . '/db.php';
+    try {
+        $db   = getDB();
+        $stmt = $db->prepare('SELECT id, question_text FROM questions ORDER BY RAND() LIMIT ' . $roundSize);
+        $stmt->execute();
+        $questions = $stmt->fetchAll();
+
+        foreach ($questions as &$q) {
+            $aStmt = $db->prepare(
+                'SELECT id, answer_text, points, display_order FROM answers WHERE question_id = ? ORDER BY display_order'
+            );
+            $aStmt->execute([$q['id']]);
+            $q['answers'] = $aStmt->fetchAll();
+        }
+        unset($q);
+
+        $localData = json_encode([
+            'questions' => $questions,
+            'roundSize' => $roundSize,
+            'players'   => [
+                ['player_number' => 1, 'player_name' => $p1],
+                ['player_number' => 2, 'player_name' => $p2],
+            ],
+        ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+    } catch (Throwable $e) {
+        error_log('[PeopleSaySo] Local setup failed: ' . $e->getMessage());
+        header('Location: index.php?error=db');
+        exit;
+    }
+} else {
+    $gameId       = isset($_GET['game_id'])       ? (int)$_GET['game_id']       : 0;
+    $playerNumber = isset($_GET['player_number']) ? (int)$_GET['player_number'] : 1;
+    $gameCode     = isset($_GET['game_code'])     ? htmlspecialchars($_GET['game_code']) : '';
+    $mode         = (isset($_GET['mode']) && $_GET['mode'] === 'local') ? 'local' : 'online';
+
+    if (!$gameId) {
+        echo '<script>window.location.href="index.php";</script>';
+        exit;
+    }
 }
 ?>
 
@@ -153,7 +205,8 @@ if (!$gameId) {
         playerNumber: <?= $playerNumber ?>,
         gameCode:     <?= json_encode($gameCode) ?>,
         mode:         <?= json_encode($mode) ?>,
-        apiUrl:       'api.php'
+        apiUrl:       'api.php',
+        localData:    <?= $localData ?>
     };
 </script>
 <script src="assets/app.js"></script>

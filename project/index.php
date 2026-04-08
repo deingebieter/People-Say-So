@@ -43,31 +43,33 @@
         </button>
     </div>
 
-    <!-- LOCAL GAME FORM -->
-    <div class="form-panel card animate-in delay-2 hidden" id="localForm">
-        <button class="back-btn" data-back="mode">← Zurück</button>
+    <!-- LOCAL GAME FORM (plain POST – no JS fetch needed) -->
+    <form method="POST" action="game.php" class="form-panel card animate-in delay-2 hidden" id="localForm" novalidate>
+        <button type="button" class="back-btn" data-back="mode">← Zurück</button>
         <h2 class="form-title">👫 Lokales Spiel</h2>
         <div class="form-group">
             <label for="localP1">Spieler 1 Name</label>
-            <input type="text" id="localP1" class="input-field" placeholder="Spieler 1..." maxlength="20">
+            <input type="text" id="localP1" name="p1" class="input-field" placeholder="Spieler 1..." maxlength="20">
         </div>
         <div class="form-group">
             <label for="localP2">Spieler 2 Name</label>
-            <input type="text" id="localP2" class="input-field" placeholder="Spieler 2..." maxlength="20">
+            <input type="text" id="localP2" name="p2" class="input-field" placeholder="Spieler 2..." maxlength="20">
         </div>
         <div class="form-group">
             <label>Rundengröße</label>
-            <div class="round-size-picker">
-                <button class="round-size-btn active" data-size="5">5 Fragen</button>
-                <button class="round-size-btn" data-size="10">10 Fragen</button>
-                <button class="round-size-btn" data-size="25">25 Fragen</button>
+            <div class="round-size-picker" id="localRoundSizePicker">
+                <button type="button" class="round-size-btn active" data-size="5">5 Fragen</button>
+                <button type="button" class="round-size-btn" data-size="10">10 Fragen</button>
+                <button type="button" class="round-size-btn" data-size="25">25 Fragen</button>
             </div>
+            <input type="hidden" name="round_size" id="localRoundSizeInput" value="5">
+            <input type="hidden" name="mode" value="local">
         </div>
-        <button class="btn btn-primary btn-full" id="startLocalGame">
+        <button type="submit" class="btn btn-primary btn-full" id="startLocalGame">
             🎮 Spiel starten!
         </button>
         <div class="form-error hidden" id="localError"></div>
-    </div>
+    </form>
 
     <!-- ONLINE SELECTION -->
     <div class="form-panel card animate-in delay-2 hidden" id="onlineSelection">
@@ -184,17 +186,29 @@
         });
     });
 
-    // ---- Round size picker ----
+    // ---- Round size picker (shared for local & online forms) ----
     document.querySelectorAll('.round-size-picker').forEach(picker => {
         picker.querySelectorAll('.round-size-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 picker.querySelectorAll('.round-size-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 selectedRoundSize = parseInt(btn.dataset.size);
+                // Sync hidden input for local form
+                const hidden = document.getElementById('localRoundSizeInput');
+                if (hidden && picker.id === 'localRoundSizePicker') hidden.value = selectedRoundSize;
             });
         });
     });
 
+    // ---- Local game: validate before form POST ----
+    document.getElementById('localForm').addEventListener('submit', (e) => {
+        const p1 = document.getElementById('localP1').value.trim();
+        const p2 = document.getElementById('localP2').value.trim();
+        if (!p1 || !p2) {
+            e.preventDefault();
+            showError('localError', 'Bitte beide Namen eingeben.');
+        }
+    });
     // ---- Copy code ----
     document.getElementById('copyCode').addEventListener('click', () => {
         const code = document.getElementById('displayCode').textContent;
@@ -224,40 +238,6 @@
         const url = `game.php?game_id=${gameId}&player_number=${playerNumber}&game_code=${gameCode}&mode=${mode}`;
         window.location.href = url;
     }
-
-    // ---- Local game ----
-    document.getElementById('startLocalGame').addEventListener('click', async () => {
-        const p1 = document.getElementById('localP1').value.trim();
-        const p2 = document.getElementById('localP2').value.trim();
-        if (!p1 || !p2) {
-            showError('localError', 'Bitte beide Namen eingeben.');
-            return;
-        }
-        const btn = document.getElementById('startLocalGame');
-        btn.disabled = true;
-        btn.textContent = 'Lade...';
-
-        try {
-            const res = await apiCall({ action: 'create_game', player_name: p1, round_size: selectedRoundSize, mode: 'local' });
-            if (!res.success) { showError('localError', res.error); btn.disabled = false; btn.textContent = '🎮 Spiel starten!'; return; }
-
-            const gameId = res.data.game_id;
-            const gameCode = res.data.game_code;
-
-            // Auto join player 2 in local mode
-            const res2 = await apiCall({ action: 'join_game', game_code: gameCode, player_name: p2 });
-            if (!res2.success) { showError('localError', res2.error); btn.disabled = false; btn.textContent = '🎮 Spiel starten!'; return; }
-
-            // Start round immediately
-            await apiCall({ action: 'start_round', game_id: gameId, round_size: selectedRoundSize });
-
-            goToGame(gameId, 1, gameCode, 'local');
-        } catch(e) {
-            showError('localError', 'Verbindungsfehler. Bitte erneut versuchen.');
-            btn.disabled = false;
-            btn.textContent = '🎮 Spiel starten!';
-        }
-    });
 
     // ---- Create online game ----
     document.getElementById('createGameBtn').addEventListener('click', async () => {

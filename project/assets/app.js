@@ -207,6 +207,184 @@ const Audio8Bit = (function() {
 })();
 
 // ================================================================
+// Local Game Engine – all logic runs in-browser, no server calls
+// ================================================================
+
+function levenshteinDistance(a, b) {
+    const m = a.length, n = b.length;
+    const dp = [];
+    for (let i = 0; i <= m; i++) {
+        dp[i] = [i];
+        for (let j = 1; j <= n; j++) dp[i][j] = i === 0 ? j : 0;
+    }
+    for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+            dp[i][j] = a[i-1] === b[j-1]
+                ? dp[i-1][j-1]
+                : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+        }
+    }
+    return dp[m][n];
+}
+
+function fuzzyMatchLocal(input, stored) {
+    const umlauts = {'ä':'ae','ö':'oe','ü':'ue','ß':'ss','à':'a','á':'a','â':'a',
+                     'è':'e','é':'e','ê':'e','ì':'i','í':'i','î':'i',
+                     'ò':'o','ó':'o','ô':'o','ù':'u','ú':'u','û':'u'};
+    const normalize = s => s.toLowerCase().trim().replace(/\s+/g, ' ')
+                            .replace(/[äöüßàáâèéêìíîòóôùúû]/g, c => umlauts[c] || c);
+    const normInput  = normalize(input);
+    const normStored = normalize(stored);
+
+    if (normInput === normStored) return true;
+    if (input.toLowerCase().trim() === stored.toLowerCase().trim()) return true;
+
+    if (normInput.length >= 3 && normStored.length >= 3) {
+        if (normStored.includes(normInput) || normInput.includes(normStored)) return true;
+    }
+    if (normInput.length > 4 && normStored.length > 4) {
+        if (levenshteinDistance(normInput, normStored) <= 2) return true;
+    }
+    return false;
+}
+
+class LocalEngine {
+    constructor(data) {
+        // data = { questions, roundSize, players:[{player_number, player_name}] }
+        this.questions        = data.questions.slice();
+        this.roundSize        = data.roundSize;
+        this.currentIndex     = 0;
+        this.questionsPlayed  = 0;
+        this.roundNumber      = 1;
+        this.energy           = 100;
+        this.status           = 'active';
+        this.players          = data.players.map(p => ({
+            player_number:  p.player_number,
+            player_name:    p.player_name,
+            total_score:    0,
+            is_current_turn: p.player_number === 1 ? 1 : 0,
+        }));
+        this.revealedAnswers  = {};  // questionId → [answerId, …]
+        this.strikes          = {};  // questionId → count
+    }
+
+    getState() {
+        const q       = this.questions[this.currentIndex] || null;
+        const revIds  = q ? (this.revealedAnswers[q.id] || []) : [];
+        const revObjs = q
+            ? (q.answers || []).filter(a => revIds.includes(a.id))
+                               .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+            : [];
+        return {
+            game: {
+                id:                          0,
+                game_code:                   '',
+                mode:                        'local',
+                status:                      this.status,
+                energy:                      this.energy,
+                current_question_index:      this.currentIndex,
+                current_round_size:          this.roundSize,
+                questions_played_this_round: this.questionsPlayed,
+                round_number:                this.roundNumber,
+            },
+            players:          this.players,
+            current_question: q,
+            revealed_answers: revObjs,
+            strikes:          q ? (this.strikes[q.id] || 0) : 0,
+            total_questions:  this.roundSize,
+            current_player:   null,
+        };
+    }
+
+    submitAnswer(playerNumber, answerText) {
+        const q = this.questions[this.currentIndex];
+        if (!q) return { success: false, error: 'Keine aktuelle Frage.' };
+
+        const revIds  = this.revealedAnswers[q.id] || [];
+        let   matched = null;
+        for (const answer of (q.answers || [])) {
+            if (revIds.includes(answer.id)) continue;
+            if (fuzzyMatchLocal(answerText, answer.answer_text)) { matched = answer; break; }
+        }
+
+        const result = {
+            correct: false, points: 0, answer_revealed: null,
+            all_revealed: false, round_ended: false, strike_count: 0,
+        };
+
+        if (matched) {
+            const player = this.players.find(p => p.player_number === playerNumber);
+            if (player) player.total_score += matched.points;
+
+            if (!this.revealedAnswers[q.id]) this.revealedAnswers[q.id] = [];
+            this.revealedAnswers[q.id].push(matched.id);
+
+            result.correct         = true;
+            result.points          = matched.points;
+            result.answer_revealed = matched;
+
+            if (this.revealedAnswers[q.id].length >= (q.answers || []).length) {
+                result.all_revealed = true;
+            }
+            this._switchTurn(playerNumber);
+        } else {
+            if (!this.strikes[q.id]) this.strikes[q.id] = 0;
+            this.strikes[q.id]++;
+            result.strike_count = this.strikes[q.id];
+            if (this.strikes[q.id] >= 3) result.all_revealed = true;
+            this._switchTurn(playerNumber);
+        }
+
+        if (result.all_revealed) result.round_ended = this._advanceQuestion();
+
+        result.game_state = this.getState();
+        return { success: true, data: result };
+    }
+
+    passTurn(playerNumber) {
+        this._switchTurn(playerNumber);
+        return { success: true, data: this.getState() };
+    }
+
+    startNewRound() {
+        this._shuffle();
+        this.currentIndex    = 0;
+        this.questionsPlayed = 0;
+        this.roundNumber++;
+        this.revealedAnswers = {};
+        this.strikes         = {};
+        this.status          = 'active';
+        this.players.forEach(p => { p.is_current_turn = p.player_number === 1 ? 1 : 0; });
+        return { success: true, data: this.getState() };
+    }
+
+    _switchTurn(current) {
+        const next = current === 1 ? 2 : 1;
+        this.players.forEach(p => { p.is_current_turn = p.player_number === next ? 1 : 0; });
+    }
+
+    _advanceQuestion() {
+        this.currentIndex++;
+        this.questionsPlayed++;
+        const cost = Math.round(100 / this.roundSize);
+        this.energy = Math.max(0, this.energy - cost);
+        if (this.questionsPlayed >= this.roundSize || this.energy <= 0) {
+            this.status = this.energy <= 0 ? 'finished' : 'round_end';
+            return true;
+        }
+        this.players.forEach(p => { p.is_current_turn = p.player_number === 1 ? 1 : 0; });
+        return false;
+    }
+
+    _shuffle() {
+        for (let i = this.questions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [this.questions[i], this.questions[j]] = [this.questions[j], this.questions[i]];
+        }
+    }
+}
+
+// ================================================================
 // GameState class
 // ================================================================
 class GameState {
@@ -221,6 +399,11 @@ class GameState {
         this.pollInterval = null;
         this.submitting   = false;
         this.lastQuestionId = null;
+
+        // Local mode: run entirely in-browser
+        this.localEngine = (config.mode === 'local' && config.localData)
+            ? new LocalEngine(config.localData)
+            : null;
     }
 
     async api(payload) {
@@ -233,6 +416,11 @@ class GameState {
     }
 
     async loadState() {
+        if (this.localEngine) {
+            this.state = this.localEngine.getState();
+            this.render();
+            return { success: true };
+        }
         try {
             const res = await this.api({
                 action: 'get_state',
@@ -454,12 +642,17 @@ class GameState {
         if (btn) { btn.disabled = true; btn.textContent = '...'; }
 
         try {
-            const res = await this.api({
-                action: 'submit_answer',
-                game_id: this.gameId,
-                player_number: playerNum,
-                answer_text: text
-            });
+            let res;
+            if (this.localEngine) {
+                res = this.localEngine.submitAnswer(playerNum, text);
+            } else {
+                res = await this.api({
+                    action: 'submit_answer',
+                    game_id: this.gameId,
+                    player_number: playerNum,
+                    answer_text: text
+                });
+            }
 
             if (res.success) {
                 const data = res.data;
@@ -507,11 +700,16 @@ class GameState {
         }
 
         try {
-            const res = await this.api({
-                action: 'pass_turn',
-                game_id: this.gameId,
-                player_number: playerNum
-            });
+            let res;
+            if (this.localEngine) {
+                res = this.localEngine.passTurn(playerNum);
+            } else {
+                res = await this.api({
+                    action: 'pass_turn',
+                    game_id: this.gameId,
+                    player_number: playerNum
+                });
+            }
             if (res.success) {
                 this.state = res.data;
                 this.render();
@@ -563,14 +761,18 @@ class GameState {
         if (newRoundBtn) {
             newRoundBtn.onclick = async () => {
                 overlay.classList.add('hidden');
-                // Ask for round size or use same
                 const roundSize = this.state?.game?.current_round_size || 5;
                 try {
-                    const res = await this.api({
-                        action: 'start_round',
-                        game_id: this.gameId,
-                        round_size: roundSize
-                    });
+                    let res;
+                    if (this.localEngine) {
+                        res = this.localEngine.startNewRound();
+                    } else {
+                        res = await this.api({
+                            action: 'start_round',
+                            game_id: this.gameId,
+                            round_size: roundSize
+                        });
+                    }
                     if (res.success) {
                         this.state = res.data;
                         this.lastQuestionId = null;
@@ -578,9 +780,9 @@ class GameState {
                         if (this.mode === 'online') this.startPolling();
                     }
                 } catch(e) {
-                        console.error('Neue Runde starten fehlgeschlagen:', e);
-                        showFeedback('wrong', 'Fehler beim Starten der neuen Runde.');
-                    }
+                    console.error('Neue Runde starten fehlgeschlagen:', e);
+                    showFeedback('wrong', 'Fehler beim Starten der neuen Runde.');
+                }
             };
         }
     }
