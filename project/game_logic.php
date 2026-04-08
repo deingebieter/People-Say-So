@@ -97,7 +97,8 @@ function consumeEnergyForGame($userId) {
     if (!canPlay($userId)) {
         return false;
     }
-    return updateEnergy($userId, -ENERGY_PER_GAME, 'game_played');
+    updateEnergy($userId, -ENERGY_PER_GAME, 'game_played');
+    return true;
 }
 
 /**
