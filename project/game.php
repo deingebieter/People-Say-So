@@ -36,7 +36,7 @@ if (isset($_POST['mode']) && $_POST['mode'] === 'local') {
     require_once __DIR__ . '/db.php';
     try {
         $db   = getDB();
-        $stmt = $db->prepare('SELECT id, question_text FROM questions ORDER BY RAND() LIMIT ' . $roundSize);
+        $stmt = $db->prepare('SELECT id, question_text FROM questions ORDER BY RAND() LIMIT ' . (int)$roundSize);
         $stmt->execute();
         $questions = $stmt->fetchAll();
 
