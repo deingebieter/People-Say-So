@@ -939,7 +939,7 @@ function confettiExplosion() {
 // ================================================================
 function initGame(config) {
     if (!config) return;
-    // Local mode has gameId=0 – only bail when there is no gameId AND no local data
+    // Bail if there's no gameId AND no localData. Local mode has gameId=0 but provides localData.
     if (!config.gameId && !config.localData) return;
 
     const game = new GameState(config);
