@@ -249,7 +249,8 @@
             if (!res2.success) { showError('localError', res2.error); btn.disabled = false; btn.textContent = '🎮 Spiel starten!'; return; }
 
             // Start round immediately
-            await apiCall({ action: 'start_round', game_id: gameId, round_size: selectedRoundSize });
+            const res3 = await apiCall({ action: 'start_round', game_id: gameId, round_size: selectedRoundSize });
+            if (!res3.success) { showError('localError', res3.error); btn.disabled = false; btn.textContent = '🎮 Spiel starten!'; return; }
 
             goToGame(gameId, 1, gameCode, 'local');
         } catch(e) {

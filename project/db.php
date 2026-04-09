@@ -13,7 +13,13 @@ function getDB(): PDO {
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES   => false,
         ];
-        $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
+        try {
+            $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
+        } catch (PDOException $e) {
+            throw new RuntimeException(
+                'Datenbankverbindung fehlgeschlagen. Bitte sicherstellen, dass MySQL läuft und database.sql importiert wurde. (' . $e->getMessage() . ')'
+            );
+        }
     }
     return $pdo;
 }

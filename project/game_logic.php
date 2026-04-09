@@ -118,6 +118,10 @@ class GameLogic {
             $questionIds = $stmt2->fetchAll(PDO::FETCH_COLUMN);
         }
 
+        if (empty($questionIds)) {
+            throw new RuntimeException('Keine Fragen in der Datenbank gefunden. Bitte database.sql importieren.');
+        }
+
         $insStmt = $this->db->prepare(
             'INSERT INTO game_questions (game_id, question_id, question_order) VALUES (?, ?, ?)'
         );
@@ -362,7 +366,7 @@ class GameLogic {
 
         // Partial: input contains stored or vice versa (for short compound words)
         if (mb_strlen($normInput, 'UTF-8') >= 3 && mb_strlen($normStored, 'UTF-8') >= 3) {
-            if (str_contains($normStored, $normInput) || str_contains($normInput, $normStored)) {
+            if (strpos($normStored, $normInput) !== false || strpos($normInput, $normStored) !== false) {
                 return true;
             }
         }

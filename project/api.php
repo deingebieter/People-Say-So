@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-function jsonResponse(bool $success, mixed $data = null, string $error = ''): void {
+function jsonResponse(bool $success, $data = null, string $error = ''): void {
     echo json_encode([
         'success' => $success,
         'data'    => $data,

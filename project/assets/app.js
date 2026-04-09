@@ -243,6 +243,11 @@ class GameState {
                 this._pollFailures = 0;
                 this.state = res.data;
                 this.render();
+            } else {
+                this._pollFailures = (this._pollFailures || 0) + 1;
+                if (this._pollFailures === 1) {
+                    showFeedback('wrong', res.error || 'Das Spiel konnte nicht geladen werden.');
+                }
             }
             return res;
         } catch(e) {
